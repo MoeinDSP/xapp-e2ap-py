@@ -1,9 +1,12 @@
 import src.e2ap_xapp as e2ap_xapp
+import sys
+sys.path.append("oai-oran-protolib/builds/")
 from ran_messages_pb2 import *
 from time import sleep
 from ricxappframe.e2ap.asn1 import IndicationMsg
 import csv 
 import time
+
 
 def xappLogic():
 
@@ -17,65 +20,66 @@ def xappLogic():
         print(gnb_id)
     print("---------")
 
-    # subscription requests
-    for gnb in gnb_id_list:
-        e2sm_buffer = e2sm_report_request_buffer()
-        connector.send_e2ap_sub_request(e2sm_buffer,gnb)
-        #connector.send_e2ap_control_request(e2sm_buffer,gnb)
-    
-        with open('data.csv', 'a') as file:
-            file_write = csv.writer(file)
-            file_write.writerow(['Timestamp', 'RSRP', 'BER_UP', 'BER_DOWN', 'MCS_UP', 'MCS_DOWN', 'CELL_LOAD'])
-            try:
-                while True:
-                    msg = connector.get_queued_rx_message()[0]
-                    indm = IndicationMsg()
-                    indm.decode(msg["payload"])
-                    ran_ind_resp = RAN_indication_response()
-                    ran_ind_resp.ParseFromString(indm.indication_message)
-                    print(ran_ind_resp)
+    with open('ue_metrics.csv', 'w') as file:
+        file_write = csv.writer(file)
+        file_write.writerow(['Timestamp', 'RNTI', 'RSRP', 'BER_UP', 'BER_DOWN', 'MCS_UP', 'MCS_DOWN', 'CELL_LOAD']) 
 
-                    ue_list = None  
+    while True:
+        # subscription requests
+        for gnb in gnb_id_list:
+            e2sm_buffer = e2sm_report_request_buffer()
+            # sending indication request
+            connector._rmr_send_w_meid(e2sm_buffer, connector.RIC_IND_RMR_ID, bytes(gnb, 'ascii'))
+            # connector.send_e2ap_sub_request(e2sm_buffer,gnb)
+            # connector.send_e2ap_control_request(e2sm_buffer,gnb)
 
-                    for i in ran_ind_resp.param_map:
-                        if i.HasField('ue_list'):
-                            ue_list = i.ue_list
+            # receiving indication response
+            received_message = None
+            start_time = time.time()
+            while time.time() - start_time < 2 and received_message is None:
+                messages = connector.get_queued_rx_message()
+                for message in messages:
+                    if message["message type"] == connector.RIC_IND_RMR_ID:
+                        received_message = message  
+                sleep(0.2)
 
-                        if ue_list is not None:
-                            prbs = ue_list.allocated_prbs
-                            rsrp_avg = 0
-                            ber_up_avg = 0
-                            ber_down_avg = 0
-                            mcs_up_avg = 0
-                            mcs_down_avg = 0
-                            cell_load_avg = 0
+            if received_message is None:
+                continue
+                
+            # message decode
+            indm = IndicationMsg()
+            indm.decode(received_message["payload"])
+            ran_ind_resp = RAN_indication_response()
+            ran_ind_resp.ParseFromString(indm.indication_message)
+            
+            # UE metrics extraction
+            ue_metrics = []
+            ue_list = None
+            for i in ran_ind_resp.param_map:
+                if i.HasField('ue_list'):
+                    ue_list = i.ue_list
 
-                            for ue_info in ue_list.ue_info:
-                                rsrp_avg += ue_info.ue_rsrp
-                                ber_up_avg += ue_info.ue_ber_up
-                                ber_down_avg += ue_info.ue_ber_down
-                                mcs_up_avg += ue_info.ue_mcs_up
-                                mcs_down_avg += ue_info.ue_mcs_down
-                                cell_load_avg += ue_info.cell_load
+                if ue_list is not None:
+                    # prbs = ue_list.allocated_prbs
+                    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+                    for ue_info in ue_list.ue_info:
+                        rnti = ue_info.rnti
+                        rsrp = ue_info.ue_rsrp
+                        ber_up = ue_info.ue_ber_up if ue_info.HasField('ue_ber_up') else None
+                        ber_down = ue_info.ue_ber_down if ue_info.HasField('ue_ber_down') else None
+                        mcs_up = ue_info.ue_mcs_up if ue_info.HasField('ue_mcs_up') else None
+                        mcs_down = ue_info.ue_mcs_down if ue_info.HasField('ue_mcs_down') else None
+                        cell_load = ue_info.cell_load if ue_info.HasField('cell_load') else None
 
-                            rsrp_avg /= prbs
-                            ber_up_avg /= prbs
-                            ber_down_avg /= prbs
-                            mcs_up_avg /= prbs
-                            mcs_down_avg /= prbs
-                            cell_load_avg /= prbs
+                    ue_metrics.append([timestamp, rnti, rsrp, ber_up, ber_down, mcs_up, mcs_down, cell_load])
+            
+            # save
+            with open('ue_metrics.csv', 'a') as file:
+                file_write = csv.writer(file)
+                for ue_info in ue_metrics:
+                    file_write.writerow(ue_info)
 
-                            timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                            data = [timestamp, rsrp_avg, ber_up_avg, ber_down_avg, mcs_up_avg, mcs_down_avg, cell_load_avg]
-                            file_write.writerow(data)
-                    
-                    print(ran_ind_resp)
-                    sleep(0.5) # Wait for 500 milliseconds
-                    connector.send_e2ap_sub_request(e2sm_buffer,gnb)
-
-                    
-            except KeyboardInterrupt:
-                print("Data collection stopped.")
+        sleep(0.5) # Wait for 500 milliseconds
 
     # # read loop
     # sleep_time = 4
