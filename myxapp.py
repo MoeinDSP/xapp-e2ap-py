@@ -60,7 +60,6 @@ def xappLogic():
                     ue_list = i.ue_list
 
                 if ue_list is not None:
-                    # prbs = ue_list.allocated_prbs
                     timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                     for ue_info in ue_list.ue_info:
                         rnti = ue_info.rnti
