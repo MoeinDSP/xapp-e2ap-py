@@ -63,6 +63,7 @@ def xappLogic():
                                 cell_load = ue_info.cell_load if ue_info.HasField('cell_load') else None
                                 metric_writer([timestamp, rnti, rsrp, ber_up, ber_down, mcs_up, mcs_down, cell_load])
                                 print(f"Received data added to database!")
+        connector.send_e2ap_control_request(e2sm_buffer, gnb_id)
         
 
 def e2sm_report_request_buffer():
