@@ -28,7 +28,7 @@ def xappLogic():
 
     with open('ue_metrics.csv', 'w') as file:
         file_write = csv.writer(file)
-        file_write.writerow(['Timestamp', 'RNTI', 'RSRP', 'BER_UP', 'BER_DOWN', 'MCS_UP', 'MCS_DOWN', 'CELL_LOAD']) 
+        file_write.writerow(['Timestamp', 'RNTI', 'RSRP', 'BER_UP', 'BER_DOWN', 'MCS_UP', 'MCS_DOWN', 'CELL_LOAD_DOWN' , 'CELL_LOAD_DOWN']) 
 
     while True:
         # Wait for 500 milliseconds
@@ -52,16 +52,18 @@ def xappLogic():
                     for params in ran_ind_resp.param_map:
                         if params.HasField('ue_list'):
                             ue_list = params.ue_list
+                            cell_load_ul = params.cell_load_ul if params.HasField('cell_load_ul') else None
+                            cell_load_dl = params.cell_load_dl if params.HasField('cell_load_dl') else None
                             for ue_info in ue_list.ue_info:
                                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                                 rnti = ue_info.rnti
-                                rsrp = ue_info.ue_rsrp
-                                ber_up = ue_info.ue_ber_up if ue_info.HasField('ue_ber_up') else None
-                                ber_down = ue_info.ue_ber_down if ue_info.HasField('ue_ber_down') else None
-                                mcs_up = ue_info.ue_mcs_up if ue_info.HasField('ue_mcs_up') else None
-                                mcs_down = ue_info.ue_mcs_down if ue_info.HasField('ue_mcs_down') else None
-                                cell_load = ue_info.cell_load if ue_info.HasField('cell_load') else None
-                                metric_writer([timestamp, rnti, rsrp, ber_up, ber_down, mcs_up, mcs_down, cell_load])
+                                rsrp = ue_info.rsrp
+                                ber_up = ue_info.dl_bler if ue_info.HasField('dl_bler') else None
+                                ber_down = ue_info.ul_bler if ue_info.HasField('ul_bler') else None
+                                mcs_up = ue_info.mcs_ul if ue_info.HasField('mcs_ul') else None
+                                mcs_down = ue_info.mcs_dl if ue_info.HasField('mcs_dl') else None
+                                # cell_load = ue_info.cell_load if ue_info.HasField('cell_load') else None
+                                metric_writer([timestamp, rnti, rsrp, ber_up, ber_down, mcs_up, mcs_down, cell_load_ul, cell_load_dl])
                                 print(f"Received data added to database!")
         connector.send_e2ap_control_request(e2sm_buffer, gnb_id)
         
