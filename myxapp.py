@@ -51,10 +51,10 @@ def xappLogic():
                     # UE metrics extraction
                     for params in ran_ind_resp.param_map:
                         print(params)
-                        cell_load_ul = params.cell_load_ul if params.HasField('cell_load_ul') else None
-                        cell_load_dl = params.cell_load_dl if params.HasField('cell_load_dl') else None
                         if params.HasField('ue_list'):
                             ue_list = params.ue_list
+                            cell_load_ul = ue_list.cell_load_ul if ue_list.HasField('cell_load_ul') else None
+                            cell_load_dl = ue_list.cell_load_dl if ue_list.HasField('cell_load_dl') else None
                             for ue_info in ue_list.ue_info:
                                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                                 rnti = ue_info.rnti
