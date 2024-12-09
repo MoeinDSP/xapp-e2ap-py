@@ -28,7 +28,7 @@ def xappLogic():
 
     with open('ue_metrics.csv', 'w') as file:
         file_write = csv.writer(file)
-        file_write.writerow(['Timestamp', 'RNTI', 'RSRP', 'BER_UP', 'BER_DOWN', 'MCS_UP', 'MCS_DOWN', 'CELL_LOAD_DOWN' , 'CELL_LOAD_DOWN']) 
+        file_write.writerow(['Timestamp', 'RNTI', 'RSRP', 'BER_UP', 'BER_DOWN', 'MCS_UP', 'MCS_DOWN', 'CELL_LOAD_UP' , 'CELL_LOAD_DOWN']) 
 
     while True:
         # Wait for 500 milliseconds
@@ -50,10 +50,11 @@ def xappLogic():
                     
                     # UE metrics extraction
                     for params in ran_ind_resp.param_map:
+                        print(params)
+                        cell_load_ul = params.cell_load_ul if params.HasField('cell_load_ul') else None
+                        cell_load_dl = params.cell_load_dl if params.HasField('cell_load_dl') else None
                         if params.HasField('ue_list'):
                             ue_list = params.ue_list
-                            cell_load_ul = params.cell_load_ul if params.HasField('cell_load_ul') else None
-                            cell_load_dl = params.cell_load_dl if params.HasField('cell_load_dl') else None
                             for ue_info in ue_list.ue_info:
                                 timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
                                 rnti = ue_info.rnti
